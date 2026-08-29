@@ -1,148 +1,134 @@
 'use strict';
 
 /* =========================================================
-   نظام الاختتام الصيفي — قاعدة البيانات المحلية
-   الملف رقم (4) من (12) : js/storage.js
+   نظام الاختتام الصيفي — قاعدة البيانات السحابية المتزامنة
+   js/storage.js — النسخة 2 (مزامنة فورية بين الأجهزة)
    ---------------------------------------------------------
-   المحتويات:
-     1) الحفظ والاسترجاع من localStorage (مع نسخة في الذاكرة)
-     2) البيانات الافتراضية (الحسابات + الاختبارات + الفقرات)
-     3) عمليات CRUD: حسابات / طلاب / اختبارات / درجات / فقرات
-     4) قواعد الصلاحيات (المشرف يعدّل كل شيء — الأستاذ إدخالاته)
-     5) محرك الترتيب والنسبة المئوية والتقديرات
-     6) النسخ الاحتياطي والاستعادة + إحصائيات المشرف
+   ☁️ أي إضافة/تعديل/حذف على أي جهاز يظهر على بقية الأجهزة
+      خلال ثانية تقريباً — تلقائياً بلا أي زر.
+   💾 عند انقطاع الإنترنت: يعمل محلياً ويزامن عند عودة الاتصال.
+   🔄 أول فتح بعد التحديث: بيانات هذا الجهاز تُرحَّل للسحابة
+      تلقائياً (افتح جهاز المشرف صاحب البيانات أولاً!).
    ---------------------------------------------------------
-   ملاحظة مهمة: كل الحسابات تقرأ كل شيء (الطلاب/الدرجات/
-   الاختبارات/الفقرات) — قاعدة الصلاحية تطبق على التعديل والحذف فقط.
+   بقية الملفات لا تتغير — نفس الواجهة تماماً.
    ========================================================= */
 
 const DB = (() => {
 
+  const KEY = 'sc_data_v1';
+  const VERSION = 1;
+
+  /* ملف الإعدادات + مكتبات Firebase (تُحمَّل ديناميكياً) */
+  const CONFIG_URL = 'js/firebase-config.js';
+  const SDK_URLS = [
+    'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js',
+    'https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js'
+  ];
+  const DATA_PATH = 'scData';
+
+  let state = null;
+  const listeners = [];
+
+  /* حالة المزامنة: local | connecting | cloud */
+  let dbRef = null;
+  let syncMode = 'local';
+  let lastPushedJSON = '';
+  let pushTimer = null;
+  let connecting = false;
+  let configMissing = false;
+
   /* =============================================================
-     إعدادات
+     ترجمات المزامنة
      ============================================================= */
-  const KEY = 'sc_data_v1';   // مفتاح التخزين في localStorage
-  const VERSION = 1;          // رقم نسخة البيانات (للترقيات المستقبلية)
-
-  let state = null;           // نسخة الذاكرة الحية
-  const listeners = [];       // مستمعو التغيير لإعادة الرسم
+  (function extendI18n() {
+    const extra = {
+      ar: { sync_on: '☁️ تم الربط بالمزامنة السحابية',
+            sync_off: '📴 لا اتصال — الوضع المحلي (سيُزامن تلقائياً)' },
+      am: { sync_on: '☁️ የደመና ማመሳሰል ተገናኝቷል',
+            sync_off: '📴 እንደገና ይመሳሰላል' },
+      en: { sync_on: '☁️ Cloud sync connected',
+            sync_off: '📴 Offline — will sync automatically' }
+    };
+    Object.keys(extra).forEach(l => {
+      if (I18N_DICT[l]) Object.assign(I18N_DICT[l], extra[l]);
+    });
+  })();
 
   /* =============================================================
-     أدوات مساعدة
+     أدوات عامة
      ============================================================= */
-
-  /* توليد معرّف فريد قصير */
   function uid(prefix) {
     return (prefix || 'id') + '_' +
            Date.now().toString(36) +
            Math.random().toString(36).slice(2, 8);
   }
-
-  /* وقت الآن (طابع زمني) */
   function now() { return Date.now(); }
 
-  /* إشعار كل المستمعين بتغيير البيانات (تعيد الواجهة الرسم) */
   function emitChange() {
     listeners.forEach(fn => {
-      try { fn(); } catch (e) { console.error('[DB] listener error:', e); }
+      try { fn(); } catch (e) { console.error('[DB] listener:', e); }
     });
     window.dispatchEvent(new CustomEvent('sc:datachange'));
   }
 
+  function emitSync() {
+    window.dispatchEvent(new CustomEvent('sc:syncchange', { detail: { mode: syncMode } }));
+  }
+
   /* =============================================================
-     الحفظ والتحميل
+     التخزين المحلي (المرآة)
      ============================================================= */
-  function load() {
+  function loadLocal() {
     try {
       const raw = localStorage.getItem(KEY);
       if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.accounts)) {
-          state = parsed;
-        }
+        const p = JSON.parse(raw);
+        if (p && typeof p === 'object' && Array.isArray(p.accounts)) state = p;
       }
-    } catch (e) {
-      console.error('[DB] فشل تحميل البيانات:', e);
-    }
+    } catch (e) { console.error('[DB] load local:', e); }
 
-    /* بيانات جديدة أو تالفة → هيكل فارغ ثم زرع الافتراضيات */
     if (!state) {
       state = {
-        version: VERSION,
-        seeded: false,
-        accounts: [],
-        students: [],
-        exams: [],
-        scores: {},      // scores[examId][studentId] = {score, updatedAt, updatedBy}
-        segments: []
+        version: VERSION, seeded: false,
+        accounts: [], students: [], exams: [], scores: {}, segments: []
       };
     }
-
     if (!state.seeded) seed();
     migrate();
-    persist();
+    saveLocal();
   }
 
-  function persist() {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(state));
-    } catch (e) {
-      console.error('[DB] فشل الحفظ (مساحة ممتلئة؟):', e);
-      alert('تعذر حفظ البيانات — مساحة التخزين ممتلئة!');
-    }
-    emitChange();
-  }
-
-  /* ترقيات مستقبلية لهيكل البيانات */
-  function migrate() {
-    if (!state.scores || typeof state.scores !== 'object') state.scores = {};
-    if (!Array.isArray(state.students)) state.students = [];
-    if (!Array.isArray(state.exams)) state.exams = [];
-    if (!Array.isArray(state.segments)) state.segments = [];
-    if (!Array.isArray(state.accounts)) state.accounts = [];
-    state.version = VERSION;
+  function saveLocal() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch (e) { console.error('[DB] save local:', e); }
   }
 
   /* =============================================================
-     الزرع الافتراضي — يعمل مرة واحدة عند أول تشغيل
+     الزرع الافتراضي (مرة واحدة عند أول تشغيل)
      ============================================================= */
   function seed() {
     const t = now();
 
-    /* ---------- الحسابات الافتراضية ---------- */
     const admin = {
-      id: 'acc_admin',
-      username: 'kiar',
-      password: 'kiar2024',
-      fullName: 'المشرف العام',
-      nameKey: 'supervisor',           // مفتاح ترجمة الاسم
-      role: 'admin',
-      createdAt: t,
-      createdBy: 'system'
+      id: 'acc_admin', username: 'kiar', password: 'kiar2024',
+      fullName: 'المشرف العام', nameKey: 'supervisor',
+      role: 'admin', createdAt: t, createdBy: 'system'
     };
 
     const teachersData = [
-      { username: 'jihad',    nameKey: 'teacher_jihad'    },
-      { username: 'hassan',   nameKey: 'teacher_hassan'   },
-      { username: 'nour',     nameKey: 'teacher_nour'     },
-      { username: 'mohamed',  nameKey: 'teacher_mohamed'  },
-      { username: 'khiyar',   nameKey: 'teacher_khiyar'   }
+      { username: 'jihad',   nameKey: 'teacher_jihad'   },
+      { username: 'hassan',  nameKey: 'teacher_hassan'  },
+      { username: 'nour',    nameKey: 'teacher_nour'    },
+      { username: 'mohamed', nameKey: 'teacher_mohamed' },
+      { username: 'khiyar',  nameKey: 'teacher_khiyar'  }
     ];
 
-    const teachers = teachersData.map((td, i) => ({
-      id: 'acc_t' + i,
-      username: td.username,
-      password: '1234',
-      fullName: '',                    // يُعرض من مفتاح الترجمة
-      nameKey: td.nameKey,
-      role: 'teacher',
-      createdAt: t,
-      createdBy: 'system'
-    }));
+    state.accounts = [admin, ...teachersData.map((td, i) => ({
+      id: 'acc_t' + i, username: td.username, password: '1234',
+      fullName: '', nameKey: td.nameKey,
+      role: 'teacher', createdAt: t, createdBy: 'system'
+    }))];
 
-    state.accounts = [admin, ...teachers];
-
-    /* ---------- اختبارات الكبار: قرآني + 6 مواد ---------- */
     const adultsExams = [
       { key: 'subj_quran',  icon: '📖', max: 50 },
       { key: 'subj_fiqh',   icon: '🕌', max: 25 },
@@ -154,31 +140,17 @@ const DB = (() => {
     ];
 
     state.exams = adultsExams.map((e, i) => ({
-      id: 'exam_a_' + i,
-      titleKey: e.key,                 // عنوان مترجم تلقائياً
-      title: '',                       // عنوان مخصص (فارغ = استخدم الترجمة)
-      group: 'adults',
-      icon: e.icon,
-      maxScore: e.max,                 // الدرجة العظمى — قابلة للتعديل
-      order: i,
-      createdAt: t,
-      createdBy: 'system'
+      id: 'exam_a_' + i, titleKey: e.key, title: '',
+      group: 'adults', icon: e.icon, maxScore: e.max,
+      order: i, createdAt: t, createdBy: 'system'
     }));
 
-    /* ---------- اختبار الصغار: قرآني أساسي ---------- */
     state.exams.push({
-      id: 'exam_k_0',
-      titleKey: 'subj_quran_kids',
-      title: '',
-      group: 'kids',
-      icon: '📖',
-      maxScore: 50,
-      order: 0,
-      createdAt: t,
-      createdBy: 'system'
+      id: 'exam_k_0', titleKey: 'subj_quran_kids', title: '',
+      group: 'kids', icon: '📖', maxScore: 50,
+      order: 0, createdAt: t, createdBy: 'system'
     });
 
-    /* ---------- فقرات المهرجانية الافتراضية ---------- */
     const adultsSegs = [
       'seg_stories', 'seg_poetry', 'seg_khutbah', 'seg_virtues',
       'seg_fiqh_qa', 'seg_aqidah_self', 'seg_sirah_c', 'seg_tajwid_c'
@@ -190,24 +162,12 @@ const DB = (() => {
 
     state.segments = [
       ...adultsSegs.map((k, i) => ({
-        id: 'seg_a_' + i,
-        titleKey: k,
-        title: '',
-        section: 'adults',
-        participants: [],
-        order: i,
-        createdAt: t,
-        createdBy: 'system'
+        id: 'seg_a_' + i, titleKey: k, title: '', section: 'adults',
+        participants: [], order: i, createdAt: t, createdBy: 'system'
       })),
       ...kidsSegs.map((k, i) => ({
-        id: 'seg_k_' + i,
-        titleKey: k,
-        title: '',
-        section: 'kids',
-        participants: [],
-        order: i,
-        createdAt: t,
-        createdBy: 'system'
+        id: 'seg_k_' + i, titleKey: k, title: '', section: 'kids',
+        participants: [], order: i, createdAt: t, createdBy: 'system'
       }))
     ];
 
@@ -216,21 +176,175 @@ const DB = (() => {
     state.seeded = true;
   }
 
+  function migrate() {
+    if (!state.scores || typeof state.scores !== 'object' || Array.isArray(state.scores)) state.scores = {};
+    if (!Array.isArray(state.students)) state.students = [];
+    if (!Array.isArray(state.exams)) state.exams = [];
+    if (!Array.isArray(state.segments)) state.segments = [];
+    if (!Array.isArray(state.accounts)) state.accounts = [];
+    state.version = VERSION;
+  }
+
   /* =============================================================
-     الوصول للبيانات (قراءة — متاحة للجميع: مشرف وأساتذة)
+     الحفظ: محلي فوراً + رفع للسحابة (بعد مهلة قصيرة للدمج)
      ============================================================= */
+  function persist() {
+    saveLocal();
+    emitChange();
+    schedulePush(250);
+  }
 
-  /* الحالة الكاملة (للاستخدام الداخلي والعرض) */
-  function data() { return state; }
+  function schedulePush(delay) {
+    if (!dbRef) return;              /* غير متصل → محلي فقط */
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushRemote, delay == null ? 250 : delay);
+  }
 
-  /* ---------- الحسابات ---------- */
+  function pushRemote() {
+    if (!dbRef) return;
+    try {
+      lastPushedJSON = JSON.stringify(state);
+      dbRef.set(state).catch(err => console.warn('[DB] push failed:', err));
+    } catch (e) { console.error('[DB] push:', e); }
+  }
+
+  /* =============================================================
+     المزامنة السحابية
+     ============================================================= */
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('load failed: ' + src));
+      document.head.appendChild(s);
+    });
+  }
+
+  /* تنظيف البيانات القادمة من السحابة
+     (Firebase لا يحفظ المصفوفات الفارغة فتُحذف المفاتيح) */
+  function sanitize(st) {
+    if (!st || typeof st !== 'object') return null;
+    st.accounts = Array.isArray(st.accounts) ? st.accounts : [];
+    st.students = Array.isArray(st.students) ? st.students : [];
+    st.exams    = Array.isArray(st.exams) ? st.exams : [];
+    st.segments = Array.isArray(st.segments) ? st.segments : [];
+    st.scores   = (st.scores && typeof st.scores === 'object' && !Array.isArray(st.scores)) ? st.scores : {};
+    st.version  = VERSION;
+    return st;
+  }
+
+  /* هل البيانات مجرد الافتراضيات (بلا أي إدخال حقيقي)؟ */
+  function isFreshSeed(st) {
+    if (!st) return true;
+    if (st.students.length > 0) return false;
+    if (Object.keys(st.scores).some(k => Object.keys(st.scores[k]).length > 0)) return false;
+    if ((st.segments || []).some(g => (g.participants || []).length > 0)) return false;
+    if ((st.accounts || []).some(a => a.createdBy !== 'system')) return false;
+    if ((st.exams || []).some(e => e.createdBy !== 'system')) return false;
+    return true;
+  }
+
+  /* استقبال بيانات من السحابة (تغيير من جهاز آخر أو صدى كتابتنا) */
+  function applyRemote(remote, force) {
+    const clean = sanitize(remote);
+    if (!clean || !Array.isArray(clean.accounts) || clean.accounts.length === 0) return;
+
+    const json = JSON.stringify(clean);
+
+    /* صدى كتابتنا نحن */
+    if (!force && json === lastPushedJSON) {
+      if (json !== JSON.stringify(state)) {
+        /* عندنا تعديلات أحدث لم تُرفع بعد → نبقيها ونرفعها فوراً */
+        schedulePush(0);
+      } else {
+        state = clean; saveLocal();
+      }
+      return;
+    }
+
+    /* لا تغيير فعلي */
+    if (json === JSON.stringify(state)) { state = clean; saveLocal(); return; }
+
+    /* تغيير حقيقي من جهاز آخر → اعتماده وإعادة الرسم */
+    state = clean;
+    migrate();
+    saveLocal();
+    emitChange();
+  }
+
+  async function connectCloud() {
+    if (connecting || dbRef || configMissing) return;
+    connecting = true;
+
+    try {
+      /* 1) ملف الإعدادات */
+      await loadScript(CONFIG_URL);
+      if (!window.FIREBASE_CONFIG || !FIREBASE_CONFIG.databaseURL ||
+          String(FIREBASE_CONFIG.databaseURL).indexOf('ضع') !== -1) {
+        configMissing = true;      /* لم تُضبط الإعدادات → وضع محلي */
+        return;
+      }
+
+      /* 2) مكتبات Firebase */
+      for (const u of SDK_URLS) await loadScript(u);
+
+      /* 3) الاتصال */
+      const app = (firebase.apps && firebase.apps.length)
+        ? firebase.app()
+        : firebase.initializeApp(FIREBASE_CONFIG);
+      dbRef = app.database().ref(DATA_PATH);
+
+      /* 4) أول قراءة: السحابة فارغة؟ */
+      const snap = await Promise.race([
+        dbRef.get(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000))
+      ]);
+
+      if (!snap.exists()) {
+        /* فارغة → نرحّل بيانات هذا الجهاز إن كانت حقيقية */
+        if (state && !isFreshSeed(state)) pushRemote();
+        /* وإن كانت افتراضية → ننتظر بيانات أول جهاز حقيقي */
+      } else {
+        applyRemote(snap.val(), true);   /* السحابة هي المرجع */
+      }
+
+      /* 5) الاستماع الدائم للتغييرات من بقية الأجهزة */
+      dbRef.on('value', s => {
+        try { applyRemote(s.val()); } catch (e) { /* تجاهل */ }
+      });
+
+      syncMode = 'cloud';
+      emitSync();
+      if (typeof UI !== 'undefined' && UI.toast) {
+        UI.toast(I18n.t('sync_on'), 'success', 2200);
+      }
+
+    } catch (err) {
+      console.warn('[DB] السحابة غير متاحة — وضع محلي:', err);
+      dbRef = null;
+      syncMode = 'local';
+      emitSync();
+    } finally {
+      connecting = false;
+    }
+  }
+
+  /* إعادة المحاولة تلقائياً عند عودة الإنترنت */
+  window.addEventListener('online', () => {
+    if (!dbRef) setTimeout(connectCloud, 1500);
+  });
+
+  /* =============================================================
+     الحسابات
+     ============================================================= */
   function getAccounts() {
     return [...state.accounts].sort((a, b) =>
       (a.role === 'admin' ? -1 : 1) - (b.role === 'admin' ? -1 : 1) ||
       accountName(a).localeCompare(accountName(b))
     );
   }
-  function findAccount(id)       { return state.accounts.find(a => a.id === id) || null; }
+  function findAccount(id) { return state.accounts.find(a => a.id === id) || null; }
   function findAccountByUsername(u) {
     return state.accounts.find(a =>
       a.username.toLowerCase() === String(u || '').toLowerCase().trim()
@@ -253,74 +367,14 @@ const DB = (() => {
     return state.accounts.filter(a => a.role === 'admin').length;
   }
 
-  /* ---------- الطلاب ---------- */
-  function getStudents(group) {
-    let list = [...state.students];
-    if (group) list = list.filter(s => s.group === group);
-    return list.sort((a, b) =>
-      String(a.name).localeCompare(String(b.name), 'ar')
-    );
-  }
-  function findStudent(id) { return state.students.find(s => s.id === id) || null; }
-
-  /* ---------- الاختبارات ---------- */
-  function getExams(group) {
-    let list = [...state.exams];
-    if (group) list = list.filter(e => e.group === group);
-    return list.sort((a, b) =>
-      (a.order || 0) - (b.order || 0) || a.createdAt - b.createdAt
-    );
-  }
-  function findExam(id) { return state.exams.find(e => e.id === id) || null; }
-
-  /* عنوان الاختبار المعروض: المخصص أولاً ثم ترجمة المفتاح */
-  function examTitle(exam) {
-    if (!exam) return '';
-    if (exam.title && exam.title.trim()) return exam.title.trim();
-    if (exam.titleKey && I18N_DICT.ar[exam.titleKey]) return I18n.t(exam.titleKey);
-    return exam.titleKey || '';
-  }
-
-  /* ---------- الدرجات ---------- */
-  function getScore(examId, studentId) {
-    return (state.scores[examId] || {})[studentId] || null;
-  }
-  function getScoresForExam(examId) {
-    return state.scores[examId] || {};
-  }
-
-  /* ---------- فقرات المهرجانية ---------- */
-  function getSegments(section) {
-    let list = [...state.segments];
-    if (section) list = list.filter(g => g.section === section);
-    return list.sort((a, b) =>
-      (a.order || 0) - (b.order || 0) || a.createdAt - b.createdAt
-    );
-  }
-  function findSegment(id) { return state.segments.find(g => g.id === id) || null; }
-  function segmentTitle(seg) {
-    if (!seg) return '';
-    if (seg.title && seg.title.trim()) return seg.title.trim();
-    if (seg.titleKey && I18N_DICT.ar[seg.titleKey]) return I18n.t(seg.titleKey);
-    return seg.titleKey || '';
-  }
-
-  /* =============================================================
-     عمليات الإضافة / التعديل / الحذف
-     (user = المستخدم الحالي — يُسجل من قام بالإدخال)
-     ============================================================= */
-
-  /* ---------- الحسابات (المشرف فقط — التحقق في الواجهة) ---------- */
   function addAccount({ username, password, fullName, role }) {
+    let by = 'system';
+    try { const u = Auth.getUser(); if (u) by = u.id; } catch (e) { /* تجاهل */ }
     const acc = {
-      id: uid('acc'),
-      username: String(username).trim(),
-      password: String(password),
-      fullName: String(fullName || '').trim(),
-      nameKey: null,
-      role: role === 'admin' ? 'admin' : 'teacher',
-      createdAt: now(),
-      createdBy: 'current_user'
+      id: uid('acc'), username: String(username).trim(),
+      password: String(password), fullName: String(fullName || '').trim(),
+      nameKey: null, role: role === 'admin' ? 'admin' : 'teacher',
+      createdAt: now(), createdBy: by
     };
     state.accounts.push(acc);
     persist();
@@ -334,7 +388,7 @@ const DB = (() => {
     if (patch.password !== undefined && patch.password !== '') acc.password = String(patch.password);
     if (patch.fullName !== undefined) {
       acc.fullName = String(patch.fullName).trim();
-      acc.nameKey = null;   // اسم مخصص → ألغِ مفتاح الترجمة
+      acc.nameKey = null;
     }
     if (patch.role !== undefined) acc.role = patch.role === 'admin' ? 'admin' : 'teacher';
     persist();
@@ -342,29 +396,33 @@ const DB = (() => {
   }
 
   function deleteAccount(id) {
-    /* حماية: لا يمكن حذف آخر مشرف */
     const acc = findAccount(id);
     if (!acc) return false;
     if (acc.role === 'admin' && adminCount() <= 1) return false;
     state.accounts = state.accounts.filter(a => a.id !== id);
-    /* ملاحظة: إدخالات الأستاذ المحذوف تبقى محفوظة في النظام */
     persist();
     return true;
   }
 
-  /* ---------- الطلاب ---------- */
+  /* =============================================================
+     الطلاب
+     ============================================================= */
+  function getStudents(group) {
+    let list = [...state.students];
+    if (group) list = list.filter(s => s.group === group);
+    return list.sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar'));
+  }
+  function findStudent(id) { return state.students.find(s => s.id === id) || null; }
+
   function addStudent({ name, group, age, teacherId, notes }, user) {
     const st = {
-      id: uid('st'),
-      name: String(name).trim(),
+      id: uid('st'), name: String(name).trim(),
       group: group === 'kids' ? 'kids' : 'adults',
       age: age ? Number(age) : null,
-      teacherId: teacherId || null,     // الأستاذ المسؤول
+      teacherId: teacherId || null,
       notes: String(notes || '').trim(),
-      createdAt: now(),
-      createdBy: user ? user.id : 'system',
-      updatedAt: now(),
-      updatedBy: user ? user.id : null
+      createdAt: now(), createdBy: user ? user.id : 'system',
+      updatedAt: now(), updatedBy: user ? user.id : null
     };
     state.students.push(st);
     persist();
@@ -387,11 +445,9 @@ const DB = (() => {
 
   function deleteStudent(id) {
     state.students = state.students.filter(s => s.id !== id);
-    /* حذف كل درجات الطالب من كل الاختبارات */
     Object.keys(state.scores).forEach(examId => {
       if (state.scores[examId][id]) delete state.scores[examId][id];
     });
-    /* حذفه من قوائم المشاركين في المهرجانية */
     state.segments.forEach(seg => {
       seg.participants = (seg.participants || []).filter(p => p.studentId !== id);
     });
@@ -399,17 +455,33 @@ const DB = (() => {
     return true;
   }
 
-  /* ---------- الاختبارات ---------- */
+  /* =============================================================
+     الاختبارات
+     ============================================================= */
+  function getExams(group) {
+    let list = [...state.exams];
+    if (group) list = list.filter(e => e.group === group);
+    return list.sort((a, b) =>
+      (a.order || 0) - (b.order || 0) || a.createdAt - b.createdAt
+    );
+  }
+  function findExam(id) { return state.exams.find(e => e.id === id) || null; }
+
+  function examTitle(exam) {
+    if (!exam) return '';
+    if (exam.title && exam.title.trim()) return exam.title.trim();
+    if (exam.titleKey && I18N_DICT.ar[exam.titleKey]) return I18n.t(exam.titleKey);
+    return exam.titleKey || '';
+  }
+
   function addExam({ title, group, icon, maxScore }, user) {
     const ex = {
-      id: uid('exam'),
-      titleKey: null,                  // اختبار مخصص — بلا ترجمة
+      id: uid('exam'), titleKey: null,
       title: String(title || '').trim(),
       group: group === 'kids' ? 'kids' : 'adults',
       icon: icon || '📝',
       maxScore: Math.max(1, Number(maxScore) || 10),
-      order: 999,                      // يضاف في النهاية
-      createdAt: now(),
+      order: 999, createdAt: now(),
       createdBy: user ? user.id : 'system'
     };
     state.exams.push(ex);
@@ -423,8 +495,7 @@ const DB = (() => {
     if (patch.title !== undefined && patch.title.trim() !== '') ex.title = patch.title.trim();
     if (patch.icon !== undefined) ex.icon = patch.icon || ex.icon;
     if (patch.maxScore !== undefined) {
-      const newMax = Math.max(1, Number(patch.maxScore) || ex.maxScore);
-      ex.maxScore = newMax;
+      ex.maxScore = Math.max(1, Number(patch.maxScore) || ex.maxScore);
     }
     if (patch.group !== undefined) ex.group = patch.group === 'kids' ? 'kids' : 'adults';
     ex.updatedAt = now();
@@ -435,39 +506,58 @@ const DB = (() => {
 
   function deleteExam(id) {
     state.exams = state.exams.filter(e => e.id !== id);
-    if (state.scores[id]) delete state.scores[id];   // حذف درجات الاختبار
+    if (state.scores[id]) delete state.scores[id];
     persist();
     return true;
   }
 
-  /* ---------- الدرجات ---------- */
-  /* score = رقم صالح أو null للمسح */
+  /* =============================================================
+     الدرجات
+     ============================================================= */
+  function getScore(examId, studentId) {
+    return (state.scores[examId] || {})[studentId] || null;
+  }
+  function getScoresForExam(examId) { return state.scores[examId] || {}; }
+
   function setScore(examId, studentId, score, user) {
     if (!state.scores[examId]) state.scores[examId] = {};
-
     if (score === null || score === '' || isNaN(Number(score))) {
-      delete state.scores[examId][studentId];        // مسح الدرجة
+      delete state.scores[examId][studentId];
     } else {
       state.scores[examId][studentId] = {
-        score: Number(score),
-        updatedAt: now(),
+        score: Number(score), updatedAt: now(),
         updatedBy: user ? user.id : null
       };
     }
     persist();
   }
 
-  /* ---------- فقرات المهرجانية ---------- */
+  /* =============================================================
+     فقرات المهرجانية
+     ============================================================= */
+  function getSegments(section) {
+    let list = [...state.segments];
+    if (section) list = list.filter(g => g.section === section);
+    return list.sort((a, b) =>
+      (a.order || 0) - (b.order || 0) || a.createdAt - b.createdAt
+    );
+  }
+  function findSegment(id) { return state.segments.find(g => g.id === id) || null; }
+
+  function segmentTitle(seg) {
+    if (!seg) return '';
+    if (seg.title && seg.title.trim()) return seg.title.trim();
+    if (seg.titleKey && I18N_DICT.ar[seg.titleKey]) return I18n.t(seg.titleKey);
+    return seg.titleKey || '';
+  }
+
   function addSegment({ title, section }, user) {
     const seg = {
-      id: uid('seg'),
-      titleKey: null,
+      id: uid('seg'), titleKey: null,
       title: String(title || '').trim(),
       section: section === 'kids' ? 'kids' : 'adults',
-      participants: [],
-      order: 999,
-      createdAt: now(),
-      createdBy: user ? user.id : 'system'
+      participants: [], order: 999,
+      createdAt: now(), createdBy: user ? user.id : 'system'
     };
     state.segments.push(seg);
     persist();
@@ -492,17 +582,14 @@ const DB = (() => {
     return true;
   }
 
-  /* ---------- المشاركون في الفقرات ---------- */
   function addParticipant(segId, { name, studentId }, user) {
     const seg = findSegment(segId);
     if (!seg) return null;
     seg.participants = seg.participants || [];
     seg.participants.push({
-      id: uid('part'),
-      name: String(name).trim(),
-      studentId: studentId || null,    // ربط اختياري بسجل طالب
-      addedAt: now(),
-      addedBy: user ? user.id : null
+      id: uid('part'), name: String(name).trim(),
+      studentId: studentId || null,
+      addedAt: now(), addedBy: user ? user.id : null
     });
     seg.updatedAt = now();
     seg.updatedBy = user ? user.id : null;
@@ -521,42 +608,28 @@ const DB = (() => {
   }
 
   /* =============================================================
-     قواعد الصلاحيات
-     ---------------------------------------------------------
-     • القراءة: متاحة للجميع (المشرف وكل الأساتذة يرون كل شيء)
-     • التعديل/الحذف:
-        - المشرف (admin): أي إدخال في النظام
-        - الأستاذ: إدخالاته هو فقط (createdBy / addedBy / updatedBy)
+     الصلاحيات
      ============================================================= */
-  function isAdmin(user) {
-    return !!user && user.role === 'admin';
-  }
+  function isAdmin(user) { return !!user && user.role === 'admin'; }
 
   function canEdit(entry, user) {
     if (!user || !entry) return false;
     if (user.role === 'admin') return true;
     const owner = entry.createdBy || entry.addedBy || entry.updatedBy;
-    return owner === user.id;
+    return owner === user.id || owner === 'system';
   }
 
-  /* صلاحية إدارة الحسابات: المشرف فقط */
-  function canManageAccounts(user) {
-    return isAdmin(user);
-  }
+  function canManageAccounts(user) { return isAdmin(user); }
 
   /* =============================================================
-     محرك النسبة المئوية والتقديرات والترتيب
+     النسبة والترتيب والتقديرات
      ============================================================= */
-
-  /* النسبة المئوية (بدقة خانة عشرية واحدة) */
   function pct(score, maxScore) {
     const s = Number(score), m = Number(maxScore);
     if (!isFinite(s) || !isFinite(m) || m <= 0) return 0;
     return Math.round((s / m) * 1000) / 10;
   }
 
-  /* التقدير حسب النسبة:
-     ≥ 90 مماز | ≥ 75 جيد | ≥ 60 مقبول | أقل ضعيف */
   function gradeInfo(p) {
     if (p >= 90) return { key: 'excellent', cls: 'grade-excellent', pill: 'excellent' };
     if (p >= 75) return { key: 'good',      cls: 'grade-good',      pill: 'good' };
@@ -564,41 +637,29 @@ const DB = (() => {
     return            { key: 'weak',        cls: 'grade-poor',      pill: 'poor' };
   }
 
-  function gradeLabel(p) {
-    return I18n.t('level_' + gradeInfo(p).key);
-  }
+  function gradeLabel(p) { return I18n.t('level_' + gradeInfo(p).key); }
 
-  /* الترتيب لاختبار واحد:
-     الطلاب الذين لديهم درجات، مرتبين تنازلياً بالنسبة المئوية
-     (الدرجة الأعلى أولاً 🥇) ثم بالدرجة ثم بالاسم أبجدياً */
   function rankedForExam(examId) {
     const exam = findExam(examId);
     if (!exam) return [];
-
     const rows = [];
     state.students.forEach(st => {
-      if (st.group !== exam.group) return;      // الاختبار خاص بمجموعته
+      if (st.group !== exam.group) return;
       const sc = getScore(examId, st.id);
       if (sc && isFinite(Number(sc.score))) {
         rows.push({
-          student: st,
-          score: Number(sc.score),
-          pct: pct(sc.score, exam.maxScore),
-          entry: sc
+          student: st, score: Number(sc.score),
+          pct: pct(sc.score, exam.maxScore), entry: sc
         });
       }
     });
-
     rows.sort((a, b) =>
-      b.pct - a.pct ||                        // الأعلى نسبة أولاً
-      b.score - a.score ||                    // ثم الدرجة الخام
+      b.pct - a.pct || b.score - a.score ||
       String(a.student.name).localeCompare(String(b.student.name), 'ar')
     );
-
     return rows;
   }
 
-  /* الترتيب العام لمجموعة (متوسط النسب عبر كل اختباراتها) */
   function overallRanking(group) {
     const exams = getExams(group);
     return state.students
@@ -625,7 +686,6 @@ const DB = (() => {
               String(a.student.name).localeCompare(String(b.student.name), 'ar'));
   }
 
-  /* متوسط نسبة اختبار معين */
   function examAveragePct(examId) {
     const rows = rankedForExam(examId);
     if (!rows.length) return null;
@@ -634,7 +694,7 @@ const DB = (() => {
   }
 
   /* =============================================================
-     إحصائيات لوحة المشرف
+     إحصائيات ونشاط
      ============================================================= */
   function stats() {
     return {
@@ -650,7 +710,6 @@ const DB = (() => {
     };
   }
 
-  /* نشاط كل أستاذ (عدد إدخالاته) — لجدول المراقبة في لوحة المشرف */
   function teacherActivity() {
     const map = {};
     state.accounts.forEach(a => {
@@ -658,17 +717,14 @@ const DB = (() => {
         map[a.id] = { account: a, students: 0, exams: 0, segments: 0, scores: 0 };
       }
     });
-
     state.students.forEach(s => { if (map[s.createdBy]) map[s.createdBy].students++; });
     state.exams.forEach(e => { if (map[e.createdBy]) map[e.createdBy].exams++; });
     state.segments.forEach(g => { if (map[g.createdBy]) map[g.createdBy].segments++; });
-
     Object.values(state.scores).forEach(examScores => {
       Object.values(examScores).forEach(sc => {
         if (map[sc.updatedBy]) map[sc.updatedBy].scores++;
       });
     });
-
     return Object.values(map).sort((a, b) =>
       (b.students + b.exams + b.segments + b.scores) -
       (a.students + a.exams + a.segments + a.scores)
@@ -676,11 +732,9 @@ const DB = (() => {
   }
 
   /* =============================================================
-     النسخ الاحتياطي والاستعادة
+     النسخ الاحتياطي
      ============================================================= */
-  function exportBackup() {
-    return JSON.stringify(state, null, 2);
-  }
+  function exportBackup() { return JSON.stringify(state, null, 2); }
 
   function importBackup(jsonText) {
     try {
@@ -688,13 +742,12 @@ const DB = (() => {
       if (!parsed || !Array.isArray(parsed.accounts) ||
           !Array.isArray(parsed.students) ||
           !Array.isArray(parsed.exams) ||
-          !Array.isArray(parsed.segments) ||
-          typeof parsed.scores !== 'object') {
+          !Array.isArray(parsed.segments)) {
         return false;
       }
       state = parsed;
       migrate();
-      persist();
+      persist();                       /* ← يُرفع للسحابة فوراً */
       return true;
     } catch (e) {
       console.error('[DB] نسخة احتياطية غير صالحة:', e);
@@ -702,64 +755,46 @@ const DB = (() => {
     }
   }
 
-  /* إعادة ضبط المصنع: حذف كل شيء وإرجاع الافتراضيات */
   function resetAll() {
     state = null;
-    load();
-    persist();
+    loadLocal();
+    persist();                         /* ← يعيد الافتراضيات للسحابة أيضاً */
   }
 
   /* =============================================================
-     مستمعو التغيير
+     التشغيل
      ============================================================= */
-  function onChange(fn) {
-    if (typeof fn === 'function') listeners.push(fn);
+  function onChange(fn) { if (typeof fn === 'function') listeners.push(fn); }
+
+  loadLocal();
+
+  /* الاتصال بالسحابة بالخلفية بعد جاهزية الصفحة — لا يعطل الواجهة */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(connectCloud, 400));
+  } else {
+    setTimeout(connectCloud, 400);
   }
 
-  /* =============================================================
-     التشغيل الفوري
-     ============================================================= */
-  load();
-
-  /* ---------- الواجهة العامة للوحدة ---------- */
+  /* ---------- الواجهة العامة (نفس أسماء النسخة السابقة) ---------- */
   return {
-    /* بيانات */
     data, uid,
-
-    /* حسابات */
     getAccounts, findAccount, findAccountByUsername,
     accountName, usernameTaken, adminCount,
     addAccount, updateAccount, deleteAccount,
-
-    /* طلاب */
     getStudents, findStudent, addStudent, updateStudent, deleteStudent,
-
-    /* اختبارات */
-    getExams, findExam, examTitle,
-    addExam, updateExam, deleteExam,
-
-    /* درجات */
+    getExams, findExam, examTitle, addExam, updateExam, deleteExam,
     getScore, getScoresForExam, setScore,
-
-    /* مهرجانية */
     getSegments, findSegment, segmentTitle,
     addSegment, updateSegment, deleteSegment,
     addParticipant, removeParticipant,
-
-    /* صلاحيات */
     isAdmin, canEdit, canManageAccounts,
-
-    /* ترتيب وتقديرات */
     pct, gradeInfo, gradeLabel,
     rankedForExam, overallRanking, examAveragePct,
-
-    /* إحصائيات */
     stats, teacherActivity,
-
-    /* نسخ احتياطي */
     exportBackup, importBackup, resetAll,
-
-    /* أحداث */
-    onChange
+    onChange,
+    getSyncMode: () => syncMode
   };
+
+  function data() { return state; }
 })();
