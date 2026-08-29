@@ -11,7 +11,7 @@
    → لا حاجة لرفع أي ملف صور يدوياً.
    ========================================================= */
 
-const CACHE_NAME    = 'sc-cache-v1.0.2';
+const CACHE_NAME    = 'sc-cache-v1.1.0';
 const RUNTIME_CACHE = 'sc-runtime-v1.0';
 
 const APP_FILES = [
@@ -27,6 +27,7 @@ const APP_FILES = [
   './js/ceremony.js',
   './js/admin.js',
   './js/app.js',
+   './js/firebase-config.js',
   './manifest.json',
   './icons/icon.svg'
 ];
