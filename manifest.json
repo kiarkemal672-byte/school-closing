@@ -1,0 +1,22 @@
+{
+  "name": "نظام الاختتام الصيفي — Summer Closing System",
+  "short_name": "الاختتام الصيفي",
+  "description": "نظام إدارة الاختبارات ويوم الاختتام الصيفي — للمشرف العام والأساتذة",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "dir": "rtl",
+  "lang": "ar",
+  "background_color": "#094640",
+  "theme_color": "#0d5c55",
+  "categories": ["education"],
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
