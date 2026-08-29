@@ -1,6 +1,6 @@
 'use strict';
 
-const FIREBASE_CONFIG = {
+window FIREBASE_CONFIG = {
   apiKey: "AIzaSyB4s25ToVZOHBFH4gTTpXZ608xxxxxx",
   authDomain: "school-closing-df7c9.firebaseapp.com",
   databaseURL: "https://school-closing-df7c9-default-rtdb.firebaseio.com",
