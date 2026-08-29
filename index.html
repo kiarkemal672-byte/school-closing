@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <!-- =========================================================
+    نظام الاختتام الصيفي — Summer Closing System
+    الملف رقم (1) من (11) : index.html — الهيكل الأساسي (نسخة مصححة)
+    ---------------------------------------------------------
+    الصلاحيات:
+      • المشرف العام (kiar): صلاحيات مطلقة — إدارة الحسابات،
+        تعديل/حذف أي إدخال، لوحة مراقبة شاملة.
+      • الأساتذة: يرون كل شيء في النظام (كل الطلاب والدرجات
+        والاختبارات والأنشطة)، ويضيفون ويعدّلون بحرية كاملة،
+        لكن التعديل/الحذف يقتصر على إدخالاتهم هم.
+        زر (زيادة حساب) وإدارة الحسابات: للمشرف فقط.
+    ---------------------------------------------------------
+    الأقسام:
+      • اختبارات الكبار (قرآني + 6 مواد) واختبار الصغار القرآني
+      • درجات عظمى قابلة للتعديل + ترتيب الطلاب بالنسبة المئوية
+      • جدول يوم الاختتام الصيفي (المهرجانية)
+    ---------------------------------------------------------
+    اللغات الثلاث: العربية / አማርኛ الأمهرية / English
+    تطبيق PWA قابل للتثبيت ويعمل دون اتصال.
+    ========================================================= -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <title>نظام الاختتام الصيفي</title>
+  <meta name="description" content="نظام إدارة الاختبارات ويوم الاختتام الصيفي — للمشرف العام والأساتذة" />
+
+  <!-- ============ إعدادات تطبيق PWA ============ -->
+  <meta name="theme-color" content="#0d5c55" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="الاختتام الصيفي" />
+
+  <!-- الخطوط: Tajawal للعربية والإنجليزية + Noto Sans Ethiopic للأمهرية -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Noto+Sans+Ethiopic:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <!-- ملف التنسيقات -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+
+  <!-- ==========================================================
+       (1) شاشة تسجيل الدخول
+       تظهر فقط عند عدم وجود جلسة محفوظة.
+       بمجرد الدخول تُحفظ الجلسة ولا تُطلب كلمة المرور مرة أخرى
+       إلا بعد الضغط على زر (خروج).
+  ========================================================== -->
+  <div id="loginScreen" class="screen login-screen">
+    <div class="login-card">
+
+      <div class="login-logo" aria-hidden="true">🎓</div>
+      <h1 class="login-title" data-i18n="app_title">نظام الاختتام الصيفي</h1>
+      <p class="login-subtitle" data-i18n="app_subtitle">خاص بالمشرف العام والأساتذة</p>
+
+      <form id="loginForm" autocomplete="off" novalidate>
+        <div class="field">
+          <label for="loginUsername" data-i18n="username">اسم المستخدم</label>
+          <input type="text" id="loginUsername" autocomplete="username"
+                 spellcheck="false" autocapitalize="none" />
+        </div>
+
+        <div class="field">
+          <label for="loginPassword" data-i18n="password">كلمة المرور</label>
+          <input type="password" id="loginPassword" autocomplete="current-password" />
+        </div>
+
+        <!-- رسالة خطأ الدخول -->
+        <p id="loginError" class="login-error hidden" role="alert"></p>
+
+        <button type="submit" class="btn btn-primary btn-block" id="loginBtn"
+                data-i18n="login_btn">دخول</button>
+      </form>
+
+      <!-- تبديل اللغة من شاشة الدخول: العربية / الأمهرية / English -->
+      <div class="login-langs" id="loginLangs">
+        <button type="button" class="lang-btn active" data-lang="ar">العربية</button>
+        <button type="button" class="lang-btn" data-lang="am">አማርኛ</button>
+        <button type="button" class="lang-btn" data-lang="en">English</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================
+       (2) الشاشة الرئيسية للتطبيق
+  ========================================================== -->
+  <div id="appScreen" class="screen app-screen hidden">
+
+    <!-- ======= الشريط العلوي ======= -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-icon" aria-hidden="true">🎓</span>
+        <span class="brand-text" data-i18n="app_title">نظام الاختتام الصيفي</span>
+      </div>
+
+      <div class="header-actions">
+        <!-- زر تثبيت التطبيق (يظهر تلقائياً عند دعم المتصفح للتثبيت) -->
+        <button id="installBtn" class="btn btn-ghost hidden" data-i18n="install_app">📥 تثبيت التطبيق</button>
+
+        <!-- زر (زيادة حساب) — يظهر للمشرف العام فقط -->
+        <button id="addAccountBtn" class="btn btn-gold hidden" data-i18n="add_account">➕ زيادة حساب</button>
+
+        <!-- تغيير كلمة المرور الخاصة بالحساب الحالي -->
+        <button id="myPasswordBtn" class="btn btn-ghost icon-btn"
+                data-i18n-title="change_my_password" title="تغيير كلمة المرور">🔑</button>
+
+        <!-- بيانات المستخدم الحالي -->
+        <div class="user-chip">
+          <span id="currentUserName"></span>
+          <span id="currentUserRole" class="role-badge"></span>
+        </div>
+
+        <!-- تبديل اللغة: العربية / الأمهرية / English -->
+        <select id="langSelect" class="lang-select" aria-label="Language">
+          <option value="ar">العربية</option>
+          <option value="am">አማርኛ</option>
+          <option value="en">English</option>
+        </select>
+
+        <!-- زر الخروج — الوحيد الذي ينهي الجلسة -->
+        <button id="logoutBtn" class="btn btn-danger" data-i18n="logout">خروج</button>
+      </div>
+    </header>
+
+    <!-- ======= التبويبات الثلاثة (+ تبويب المشرف المخفي) ======= -->
+    <nav class="tabs" id="mainTabs" role="tablist">
+      <button class="tab-btn active" role="tab" data-tab="adults"
+              data-i18n="tab_adults">📖 الكبار</button>
+      <button class="tab-btn" role="tab" data-tab="kids"
+              data-i18n="tab_kids">🧒 الصغار</button>
+      <button class="tab-btn" role="tab" data-tab="ceremony"
+              data-i18n="tab_ceremony">🎉 الاختتام الصيفي</button>
+      <!-- تبويب المشرف — يظهر للمشرف العام (kiar) فقط -->
+      <button class="tab-btn hidden" role="tab" data-tab="admin" id="adminTabBtn"
+              data-i18n="tab_admin">🛡️ لوحة المشرف</button>
+    </nav>
+
+    <!-- ======= منطقة المحتوى (قابلة للتنقل بالسحب يميناً/يساراً) ======= -->
+    <main class="main-content" id="mainContent">
+
+      <!-- تبويب 1: الكبار (قرآني + فقه، عقيدة، سيرة، تجويد، أخلاق، خط) -->
+      <section id="view-adults" class="tab-view" role="tabpanel" data-group="adults"></section>
+
+      <!-- تبويب 2: الصغار (اختبار قرآني أساسي) -->
+      <section id="view-kids" class="tab-view hidden" role="tabpanel" data-group="kids"></section>
+
+      <!-- تبويب 3: جدول يوم الاختتام الصيفي (المهرجانية) -->
+      <section id="view-ceremony" class="tab-view hidden" role="tabpanel"></section>
+
+      <!-- تبويب 4 (المشرف فقط): لوحة التحكم الشاملة -->
+      <section id="view-admin" class="tab-view hidden" role="tabpanel"></section>
+    </main>
+
+    <footer class="app-footer">
+      <span data-i18n="swipe_hint">💡 اسحب يميناً أو يساراً للتنقل بين الأقسام</span>
+    </footer>
+  </div>
+
+  <!-- ==========================================================
+       حاويات ديناميكية (النوافذ المنبثقة والتنبيهات)
+  ========================================================== -->
+  <div id="modalRoot"></div>
+  <div id="toastRoot" aria-live="polite"></div>
+
+  <noscript>
+    <p style="padding:2rem;text-align:center">
+      هذا النظام يتطلب تفعيل JavaScript في المتصفح.
+    </p>
+  </noscript>
+
+  <!-- ==========================================================
+       ملفات JavaScript — تُحمَّل بهذا الترتيب بالضبط
+  ========================================================== -->
+  <script src="js/i18n.js"></script>       <!-- (3) اللغات: العربية / الأمهرية / English -->
+  <script src="js/storage.js"></script>    <!-- (4) قاعدة البيانات والبيانات الافتراضية -->
+  <script src="js/auth.js"></script>       <!-- (5) الدخول والجلسات وإدارة الحسابات -->
+  <script src="js/ui.js"></script>         <!-- (6) النوافذ والتنبيهات -->
+  <script src="js/students.js"></script>   <!-- (7) الطلاب والدرجات والترتيب (الكل يرى كل شيء) -->
+  <script src="js/ceremony.js"></script>   <!-- (8) جدول يوم الاختتام (المهرجانية) -->
+  <script src="js/admin.js"></script>      <!-- (9) لوحة المشرف العام + إدارة الحسابات -->
+  <script src="js/app.js"></script>        <!-- (10) التشغيل والتبويبات والسحب وPWA -->
+</body>
+</html>
