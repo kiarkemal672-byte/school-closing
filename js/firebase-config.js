@@ -1,19 +1,11 @@
 'use strict';
 
-/* =========================================================
-   إعدادات المزامنة السحابية — Firebase
-   ---------------------------------------------------------
-   أنشئ مشروعاً مجانياً في console.firebase.google.com
-   ثم انسخ كائن firebaseConfig الخاص بك والصقه هنا مكان
-   كل ما بين القوسين { } بالأسفل — واترك const FIREBASE_CONFIG كما هو.
-   ========================================================= */
-
 const FIREBASE_CONFIG = {
-  apiKey: "ضع_قيمتك_هنا",
-  authDomain: "ضع_قيمتك_هنا",
-  databaseURL: "ضع_قيمتك_هنا",
-  projectId: "ضع_قيمتك_هنا",
-  storageBucket: "ضع_قيمتك_هنا",
-  messagingSenderId: "ضع_قيمتك_هنا",
-  appId: "ضع_قيمتك_هنا"
+  apiKey: "AIzaSyB4s25ToVZOHBFH4gTTpXZ608xxxxxx",
+  authDomain: "school-closing-df7c9.firebaseapp.com",
+  databaseURL: "https://school-closing-df7c9-default-rtdb.firebaseio.com",
+  projectId: "school-closing-df7c9",
+  storageBucket: "school-closing-df7c9.appspot.com",
+  messagingSenderId: "892089305437",
+  appId: "1:892089305437:web:803652a5aa4b8449xxxxxx"
 };
