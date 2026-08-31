@@ -37,7 +37,7 @@ const I18N_DICT = {
     no: 'لا',
 
     /* ---------- التطبيق ---------- */
-    app_title: 'نظام الاختتام الصيفي',
+    app_title: 'نظام الاختتام 'الشتاء,
     app_subtitle: 'خاص بالمشرف العام والأساتذة',
     username: 'اسم المستخدم',
     password: 'كلمة المرور',
@@ -49,7 +49,7 @@ const I18N_DICT = {
     swipe_hint: '💡 اسحب يميناً أو يساراً للتنقل بين الأقسام',
 
     /* ---------- التبويبات ---------- */
-    tab_adults: '📖 الكبار',
+    tab_10^: '📖 الكبار',
     tab_kids: '🧒 الصغار',
     tab_ceremony: '🎉 الاختتام الصيفي',
     tab_admin: '🛡️ لوحة المشرف',
@@ -77,7 +77,7 @@ const I18N_DICT = {
     /* ---------- أسماء الأساتذة الافتراضيين ---------- */
     teacher_jihad: 'أستاذ جهاد أحمد',
     teacher_hassan: 'أستاذ حسن',
-    teacher_nour: 'أستاذ محامد نور سبو',
+    teacher_nour: 'أستاذ محمد نور سبو',
     teacher_mohamed: 'أستاذ محمد حسن',
     teacher_khiyar: 'أستاذ خيار كمال',
 
@@ -106,7 +106,7 @@ const I18N_DICT = {
     student_count: '{count} طالب',
     age: 'العمر',
     kids_group: 'مجموعة الصغار',
-    adults_group: 'مجموعة الكبار',
+    10^_group: 'مجموعة الكبار',
 
     /* ---------- الاختبارات ---------- */
     exams: 'الاختبارات',
@@ -151,12 +151,12 @@ const I18N_DICT = {
     pdf_exam_report: 'تقرير اختبار: {exam}',
     pdf_generated_by: 'أُنشئ بواسطة',
     pdf_date: 'التاريخ',
-    pdf_school: 'مدرسة الاختتام الصيفي',
+    pdf_school: 'مدرسة الاختتام الشتاء',
     pdf_print_hint: 'اختر «حفظ كـ PDF» من نافذة الطباعة للحفظ',
     pdf_preparing: 'جاري تحضير التقرير...',
     pdf_ready: 'فتح نافذة الطباعة — اختر «حفظ كـ PDF» 📄',
     pdf_no_data: 'لا توجد بيانات للتصدير',
-    pdf_footer: 'نظام الاختتام الصيفي — تقرير آلي',
+    pdf_footer: 'نظام الاختتام الشتاء — تقرير آلي',
     pdf_signature: 'توقيع الأستاذ',
     pdf_signature_supervisor: 'توقيع المشرف العام',
 
@@ -252,11 +252,11 @@ const I18N_DICT = {
     /* ---------- አጠቃላይ ---------- */
     ok: 'እሺ',
     save: 'አስቀምጥ',
-    cancel: 'ተወ',
+    cancel: 'ተው',
     close: 'ዝጋ',
     confirm: 'አረጋግጥ',
     delete: 'አጥፋ',
-    edit: 'አርትዕ',
+    edit: 'አስተካክል',
     add: 'ጨምር',
     view: 'ተመልከት',
     actions: 'ተግባራት',
@@ -272,7 +272,7 @@ const I18N_DICT = {
     no: 'አይ',
 
     /* ---------- መተግበሪያ ---------- */
-    app_title: 'የበጋ ማጠናቀቂያ ሥርዓት',
+    app_title: 'የክረምት ማጠናቀቂያ ሥርዓት',
     app_subtitle: 'ለዋና ሱፐርቫይዘር እና መምህራን ብቻ',
     username: 'የተጠቃሚ ስም',
     password: 'የመግቢያ ቃል',
@@ -284,7 +284,7 @@ const I18N_DICT = {
     swipe_hint: '💡 በክፍሎች መካከል ለመንቀሳቀስ ወደ ቀኝ ወይም ግራ ይጎትቱ',
 
     /* ---------- ትሮች ---------- */
-    tab_adults: '📖 ትላልቆች',
+    tab_10^: '📖 ትላልቆች',
     tab_kids: '🧒 ልጆች',
     tab_ceremony: '🎉 የበጋ ማጠናቀቂያ',
     tab_admin: '🛡️ የሱፐርቫይዘር ፓነል',
@@ -314,29 +314,29 @@ const I18N_DICT = {
     teacher_hassan: 'መምህር ሀሰን',
     teacher_nour: 'መምህር ሙሐመድ ኑር ሰቡ',
     teacher_mohamed: 'መምህር ሙሐመድ ሀሰን',
-    teacher_khiyar: 'መምህር ኪያር ካማል',
+    teacher_khiyar: 'መምህር ኪያር ከማል',
 
     /* ---------- ትምህርቶች ---------- */
     subj_quran: 'ቁርዓን',
-    subj_fiqh: 'ፍቅህ',
+    subj_fiqh: 'ፊቅህ',
     subj_aqidah: 'አቂዳ',
-    subj_sirah: 'ስያራ',
-    subj_tajwid: 'ታጅዊድ',
-    subj_akhlaq: 'አክላቅ (ሞራል)',
-    subj_khat: 'ጽሕፈት (ካሊግራፊ)',
+    subj_sirah: 'ሲራ',
+    subj_tajwid: 'ተጅዊድ',
+    subj_akhlaq: 'አኽላቅ (ሞራል)',
+    subj_khat: 'ጽሕፈት ኸጥ (ካሊግራፊ)',
     subj_quran_kids: 'መሰረታዊ የቁርዓን ፈተና',
 
     /* ---------- ተማሪዎች ---------- */
     students: 'ተማሪዎች',
     student: 'ተማሪ',
     add_student: '➕ ተማሪ ጨምር',
-    edit_student: '✏️ ተማሪ አርትዕ',
+    edit_student: '✏️ ተማሪ አስተካክል',
     student_name: 'የተማሪው ስም',
     assigned_teacher: 'ተጠያቂ መምህር',
     no_students: 'እስካሁን ተማሪ የለም — የመጀመሪያውን ተማሪ ይጨምሩ',
     delete_student_confirm: '«{name}» የተባለውን ተማሪ ማጥፋት ይፈልጋሉ?',
     student_saved: 'ተማሪው ተቀምጧል ✓',
-    student_deleted: 'ተማሪው ተጠፍቷል ✓',
+    student_deleted: 'ተማሪው ጠፍቷል ✓',
     search_student: '🔍 ተማሪ ይፈልጉ...',
     student_count: '{count} ተማሪ',
     age: 'ዕድሜ',
@@ -348,7 +348,7 @@ const I18N_DICT = {
     exam: 'ፈተና',
     subject: 'ትምህርት',
     add_exam: '➕ ፈተና ፍጠር',
-    edit_exam: '✏️ ፈተና አርትዕ',
+    edit_exam: '✏️ ፈተና አስተካክል',
     exam_title: 'የፈተናው ርዕስ',
     max_score: 'ከፍተኛ ነጥብ',
     max_score_hint: 'ምሳሌ፦ 10፣ 25 ወይም 50 — መቶኛው ከዚህ ይሰላል',
@@ -386,26 +386,26 @@ const I18N_DICT = {
     pdf_exam_report: 'የፈተና ሪፖርት፦ {exam}',
     pdf_generated_by: 'ተፈጠረ በ',
     pdf_date: 'ቀን',
-    pdf_school: 'የበጋ ማጠናቀቂያ ትምህርት ቤት',
+    pdf_school: 'የክረምት ማጠናቀቂያ ትምህርት ቤት',
     pdf_print_hint: 'ለማስቀመጥ ከህትመት መስኮቱ «እንደ PDF አስቀምጥ» ይምረጡ',
     pdf_preparing: 'ሪፖርቱ በዝግጅት ላይ...',
     pdf_ready: 'የህትመት መስኮት ተከፈተ — «እንደ PDF አስቀምጥ» ይምረጡ 📄',
     pdf_no_data: 'ለመላክ የሚሆን መረጃ የለም',
-    pdf_footer: 'የበጋ ማጠናቀቂያ ሥርዓት — ራስ-ሰር ሪፖርት',
+    pdf_footer: 'የክረምት ማጠናቀቂያ ሥርዓት — ራስ-ሰር ሪፖርት',
     pdf_signature: 'የመምህሩ ፊርማ',
     pdf_signature_supervisor: 'የሱፐርቫይዘሩ ፊርማ',
 
     /* ---------- የማጠናቀቂያ ቀን ---------- */
-    ceremony_title: 'የበጋ ማጠናቀቂያ ቀን (በዓል) 🎉',
+    ceremony_title: 'የክረምት ማጠናቀቂያ ቀን (መዝጊያ) 🎉',
     ceremony_desc: 'የተማሪዎች ትርኢቶች ለማህበረሰብ — በየትኛውም ጊዜ ማስተካከል፣ መጨመር ወይም ማጥፋት ይቻላል',
     segments: 'የፕሮግራም ክፍሎች',
     participants: 'ተሳታፊዎች',
     add_segment: '➕ ክፍል ጨምር',
-    edit_segment: '✏️ ክፍል አርትዕ',
+    edit_segment: '✏️ ክፍል አስተካክል',
     segment_title: 'የክፍሉ ርዕስ',
     delete_segment_confirm: '«{title}» ክፍልን ማጥፋት ይፈልጋሉ?',
     segment_saved: 'ክፍሉ ተቀምጧል ✓',
-    segment_deleted: 'ክፍሉ ተጠፍቷል ✓',
+    segment_deleted: 'ክፍሉ ጠፍቷል ✓',
     no_segments: 'ክፍል የለም — አዲስ ክፍል ይጨምሩ',
     participants_count: '{count} ተሳታፊ',
     add_participant: 'ተሳታፊ ጨምር',
@@ -419,21 +419,21 @@ const I18N_DICT = {
     /* የትላልቆች ክፍሎች */
     seg_stories: 'የሰሃባዎች ታሪኮች',
     seg_poetry: 'ግጥም',
-    seg_khutbah: 'ኹጥባ (ስብከት)',
-    seg_virtues: 'የቁርዓን በረከቶች',
+    seg_khutbah: 'ኹጥባ (ምክር)',
+    seg_virtues: 'የቁርዓን ትሩፋቶች',
     seg_fiqh_qa: 'ፍቅህ (ሁለት ተማሪዎች፦ ጥያቄና መልስ በራስ ዝግጅት)',
     seg_aqidah_self: 'አቂዳ (በራስ ዝግጅት)',
-    seg_sirah_c: 'ስያራ',
-    seg_tajwid_c: 'ታጅዊድ',
+    seg_sirah_c: 'ሲራ',
+    seg_tajwid_c: 'ተጅዊድ',
 
     /* የልጆች ክፍሎች */
     seg_k_aqidah: 'አቂዳ (ጥያቄና መልስ)',
     seg_k_fiqh: 'ፍቅህ (ጥያቄና መልስ / የሶላት አከባበል)',
-    seg_k_sirah: 'ስያራ',
-    seg_k_tajwid: 'ታጅዊድ',
-    seg_k_akhlaq: 'አክላቅ (ሞራል)',
+    seg_k_sirah: 'ሲራ',
+    seg_k_tajwid: 'ተጅዊድ',
+    seg_k_akhlaq: 'አኽላቅ (ፀባይ)',
     seg_k_quran_hifz: 'ቁርዓን (የማስታወስ ክፍል)',
-    seg_k_norania: 'ኖራኒያ ቃዒዳ (ፊደላት + አራተኛና አምስተኛ ትምህርት)',
+    seg_k_norania: 'ቃዒዳ ኑራኒያ(ፊደላት + አራተኛና አምስተኛ ትምህርት)',
 
     /* ---------- የሱፐርቫይዘር ፓነል ---------- */
     admin_panel: 'የዋና ሱፐርቫይዘር ፓነል',
@@ -444,10 +444,10 @@ const I18N_DICT = {
     account_password: 'የመግቢያ ቃል',
     account_role: 'ሚና',
     add_account_title: 'አዲስ መለያ ፍጠር',
-    edit_account_title: 'መለያ አርትዕ',
+    edit_account_title: 'መለያ አስተካክል',
     delete_account_confirm: '«{name}» መለያን ማጥፋት ይፈልጋሉ?',
     account_saved: 'መለያው ተቀምጧል ✓',
-    account_deleted: 'መለያው ተጠፍቷል ✓',
+    account_deleted: 'መለያው ጠፍቷል ✓',
     username_exists: 'የተጠቃሚ ስም ቀድሞ ተጠቅሷል',
     cannot_delete_self: 'የእርስዎን የአሁኑ መለያ ማጥፋት አይችሉም',
     cannot_delete_last_admin: 'የመጨረሻውን የሱፐርቫይዘር መለያ ማጥፋት አይቻልም',
@@ -455,7 +455,7 @@ const I18N_DICT = {
     total_students: 'ጠቅላላ ተማሪዎች',
     total_exams: 'ጠቅላላ ፈተናዎች',
     total_accounts: 'ጠቅላላ መለያዎች',
-    total_segments: 'የበዓሉ ክፍሎች',
+    total_segments: 'የዝግጅቱ ክፍሎች',
     records_overview: 'የመምህራን መዛግብት',
     teacher_records: 'የ{teacher} ግብዓቶች',
     monitoring_note: 'እንደ ዋና ሱፐርቫይዘር ማንኛውንም ግብዓት ማስተካከል ወይም ማጥፋት ይችላሉ። መምህራን ሁሉንም ያያሉ ግን የራሳቸውን ግብዓት ብቻ ያስተካክላሉ።',
@@ -472,7 +472,7 @@ const I18N_DICT = {
     error_title: 'ስህተት',
     success_title: 'ስኬት',
     saved: 'ተቀምጧል ✓',
-    deleted: 'ተጠፍቷል ✓',
+    deleted: 'ጠፍቷል ✓',
     error_generic: 'ስህተት ተከስቷል — እንደገና ይሞክሩ',
 
     /* ---------- PWA ---------- */
@@ -519,7 +519,7 @@ const I18N_DICT = {
     swipe_hint: '💡 Swipe right or left to navigate between sections',
 
     /* ---------- Tabs ---------- */
-    tab_adults: '📖 Adults',
+    tab_10^: '📖 Adults',
     tab_kids: '🧒 Kids',
     tab_ceremony: '🎉 Summer Closing',
     tab_admin: '🛡️ Supervisor Panel',
@@ -547,7 +547,7 @@ const I18N_DICT = {
     /* ---------- Default teacher names ---------- */
     teacher_jihad: 'Ustaz Jihad Ahmed',
     teacher_hassan: 'Ustaz Hassan',
-    teacher_nour: 'Ustaz Muhamid Nur Sabu',
+    teacher_nour: 'Ustaz Muhamed Nur Sabu',
     teacher_mohamed: 'Ustaz Mohamed Hassan',
     teacher_khiyar: 'Ustaz Khiyar Kamal',
 
@@ -576,7 +576,7 @@ const I18N_DICT = {
     student_count: '{count} students',
     age: 'Age',
     kids_group: 'Kids group',
-    adults_group: 'Adults group',
+    adults_group: '10^ group',
 
     /* ---------- Exams ---------- */
     exams: 'Exams',
