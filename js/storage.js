@@ -1,7 +1,7 @@
 'use strict';
 
 /* =========================================================
-   نظام الاختتام الشتاء — قاعدة البيانات السحابية المتزامنة
+   نظام الاختتام الصيفي — قاعدة البيانات السحابية المتزامنة
    js/storage.js — النسخة 2 (مزامنة فورية بين الأجهزة)
    ---------------------------------------------------------
    ☁️ أي إضافة/تعديل/حذف على أي جهاز يظهر على بقية الأجهزة
@@ -117,10 +117,10 @@ const DB = (() => {
 
     const teachersData = [
       { username: 'jihad',   nameKey: 'teacher_jihad'   },
-      { username: 'hesen',  nameKey: 'teacher_hesen'  },
-      { username: 'nur',    nameKey: 'teacher_nur'    },
+      { username: 'hassan',  nameKey: 'teacher_hassan'  },
+      { username: 'nour',    nameKey: 'teacher_nour'    },
       { username: 'mohamed', nameKey: 'teacher_mohamed' },
-      { username: 'kiar',  nameKey: 'teacher_kiar'  }
+      { username: 'khiyar',  nameKey: 'teacher_khiyar'  }
     ];
 
     state.accounts = [admin, ...teachersData.map((td, i) => ({
